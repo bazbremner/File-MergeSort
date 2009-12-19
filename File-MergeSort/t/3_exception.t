@@ -74,5 +74,4 @@ unless ($have_io_zlib) {
     };
 
     ok($@); # test 9 - only if IO::Zlib not installed.
-
 }

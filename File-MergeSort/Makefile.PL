@@ -9,5 +9,5 @@ WriteMakefile('NAME'         => 'File::MergeSort',
 				},
 	      ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
 	       ( ABSTRACT_FROM => 'MergeSort.pm', # retrieve abstract from module
-		 AUTHOR        => 'Christopher Brown <Chris.Brown@cal.berkeley.edu>') : ()),
+		 AUTHOR        => 'Barrie Bremner') : ()),
 	     );

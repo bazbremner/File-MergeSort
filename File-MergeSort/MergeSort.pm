@@ -1,10 +1,11 @@
 package File::MergeSort;
 
-our $VERSION = '1.14';
+our $VERSION = '1.15';
 
 use 5.006;     # 5.6.0
 use strict;
 use warnings;
+
 use Carp;
 use IO::File;
 
@@ -12,7 +13,7 @@ my $have_io_zlib;
 
 BEGIN {
     eval "require IO::Zlib";
-    unless ($@) {
+    unless ( $@ ) {
         require IO::Zlib;
         $have_io_zlib++;
     }
@@ -21,7 +22,6 @@ BEGIN {
 ### PRIVATE METHODS
 
 sub _open_file {
-
     my $file = shift;
     my $fh;
 
@@ -39,9 +39,7 @@ sub _open_file {
     return $fh || undef;
 }
 
-
 sub _get_line {
-
     my $fh = shift;
     my $line = <$fh>;
 
@@ -55,9 +53,7 @@ sub _get_line {
     }
 }
 
-
 sub _get_index {
-
     # Given a line of code and a reference to code that extracts a
     # value from the line 'get_index' will return an index value that
     # can be used to compare the lines.
@@ -76,26 +72,21 @@ sub _get_index {
 ### PUBLIC METHODS
 
 sub new {
-
-    ### ARGUMENTS
     my $class     = shift;
     my $files_ref = shift;      # ref to array of files.
     my $index_ref = shift;      # ref to sub that will extract index value from line
-#   my $comp_ref  = shift;      # ref to sub used to compare index values
-                                #       currently not used.
 
-    unless ( ref $files_ref eq "ARRAY" && @$files_ref) {
+    unless ( ref $files_ref eq "ARRAY" && @$files_ref ) {
 	croak "Array reference of input files required";
     }
 
-    unless ( ref $index_ref eq "CODE") {
+    unless ( ref $index_ref eq "CODE" ) {
 	croak "Code reference required for merge key extraction";
     }
 
     ### CREATE SKELETON OBJECT
     my $self = { index      => $index_ref,
                  num_files  => 0,
-#                comparison => $comp_ref,
                };
 
     ### CREATE A RECORD FOR EACH FILE.
@@ -106,7 +97,7 @@ sub new {
         if ( my $fh = _open_file($file) ) {
 
             $self->{num_files}++;     # open files
-	    $files[$n]->{fh} = $fh; # Store object.
+	    $files[$n]->{fh} = $fh;   # Store object.
 
             # Get line and index for each file.
 	    $files[$n]->{line}  = _get_line($fh);
@@ -130,10 +121,9 @@ sub new {
     }
 
     bless $self, $class;
-}                            # End of sub new()
+} # end of new()
 
 sub next_line {
-
     ### Main method.  This returns the next line from the stack.
 
     my $self = shift;
@@ -152,7 +142,7 @@ sub next_line {
     ### We only need to find the new positions in the stack for the
     ### new index of the file.
 
-    return $line if ($self->{num_files} <= 1); # Abandon sorting when there is only one file left.
+    return $line if $self->{num_files} <= 1; # Abandon sorting when there is only one file left.
 
     my $i = 0;
     while ( $self->{sorted}->[$i]->{index} gt $self->{sorted}->[$i+1]->{index} ) {
@@ -169,9 +159,7 @@ sub next_line {
     return $line;
 }
 
-
 sub dump {
-
     # Dump the contents of the file to either STDOUT or FILE.
     # Default: STDOUT
 
@@ -179,19 +167,17 @@ sub dump {
 
     my $lines = 0;
 
-    if ($file) {
-
-        open( FILE, "> $file" ) or croak "Unable to create output file $file: $!";
+    if ( $file ) {
+        open my $fh, '>', $file or croak "Unable to create output file $file: $!";
 
         while ( my $line = $self->next_line ) {
-            print FILE $line, "\n";
+            print $fh $line, "\n";
 	    $lines++;
         }
 
-        close FILE or croak "Problems when closing output file $file: $!";
+        close $fh or croak "Problems when closing output file $file: $!";
 
     } else {
-
         while ( my $line = $self->next_line ) {
             print $line, "\n";
 	    $lines++;
@@ -201,9 +187,7 @@ sub dump {
     return $lines;
 }
 
-
 1;
-
 
 =head1 NAME
 
@@ -218,7 +202,6 @@ File::MergeSort - Mergesort ordered files.
                 [ $file_1, ..., $file_n ],  # Anonymous array of input files
                 \&extract_function,         # Sub to extract merge key
                 );
-
 
  # Retrieve the next line for processing
  my $line = $sort->next_line;
@@ -361,7 +344,7 @@ Returns the number of lines output.
      # some operations on $line
   }
 
-  sub index_sub{
+  sub index_sub {
 
     # Use this to extract a date of the form mm-dd-yyyy.
 
@@ -402,7 +385,7 @@ Nothing: OO interface. See CONSTRUCTOR and METHODS.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2001-2006 various authors.
+Copyright (c) 2001-2009 various authors.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
@@ -417,7 +400,7 @@ Christopher Brown E<lt>ctbrown@cpan.orgE<gt>.
 
 Barrie Bremner L<http://barriebremner.com/>.
 
-=head2  Contributors
+=head2 Contributors
 
 Laura Cooney.
 

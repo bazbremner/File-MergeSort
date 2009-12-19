@@ -9,7 +9,7 @@ use Test::More 'no_plan';
 BEGIN { use_ok('IO::File') };         # test 1
 BEGIN { use_ok('File::MergeSort') };  # test 2
 
-my @files = qw( t/1 t/2 t/3 t/4 t/5 t/6);
+my @files = qw( t/1 t/2 t/3 t/4 t/5 t/6 );
 my $coderef = sub { my $line = shift; substr($line,0,2); };
 
 my $m;
@@ -22,9 +22,9 @@ ok( ref $m eq 'File::MergeSort'); # test 3
 my $in_lines = 0;
 
 foreach my $file ( @files ) {
-    open F, "< $file" or die "Unable to open test file $file: $!";
-    while (<F>) { $in_lines++ };
-    close F or die "Problems closing test file, $file: $!";
+    open my $fh, '<', $file or die "Unable to open test file $file: $!";
+    while (<$fh>) { $in_lines++ };
+    close $fh or die "Problems closing test file, $file: $!";
 }
 
 my $d;
@@ -37,9 +37,9 @@ ok($d eq $in_lines); # test 4
 
 my $out_lines = 0;
 
-open F, "< t/output" or die "Unable to open test output: $!";
-while (<F>) { $out_lines++ };
-close F or die "Problems closing test output: $!";
+open my $fh, '<', 't/output' or die "Unable to open test output: $!";
+while (<$fh>) { $out_lines++ };
+close $fh or die "Problems closing test output: $!";
 
 ok($d eq $out_lines); # test 5
 
@@ -50,7 +50,6 @@ if (-f "t/output") {
 eval {
     $m = File::MergeSort->new( \@files, $coderef );
 };
-
 
 # Check data being returned by next_line really is in sorted order.
 
@@ -65,3 +64,4 @@ while ( my $line = $m->next_line() ) {
 }
 
 ok($i eq $out_lines );
+

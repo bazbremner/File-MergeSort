@@ -16,7 +16,6 @@ BEGIN {
 
 use Test::More 'no_plan';
 
-
 exit 0 unless $have_io_zlib;
 
 BEGIN { use_ok('IO::File') };         # test 1
@@ -41,14 +40,12 @@ ok( ref $m eq 'File::MergeSort'); # test 4
 my $in_lines = 0;
 
 foreach my $file ( @uncompress_files ) {
-    open F, "< $file" or die "Unable to open test file $file: $!";
-    while (<F>) { $in_lines++ };
-    close F or die "Problems closing test file, $file: $!";
+    open my $fh, '<', $file or die "Unable to open test file $file: $!";
+    while (<$fh>) { $in_lines++ };
+    close $fh or die "Problems closing test file, $file: $!";
 }
 
-my $d;
-
-$d = $m->dump();
+my $d = $m->dump();
 
 ok($d eq $in_lines); # test 5
 
