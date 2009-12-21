@@ -22,13 +22,15 @@ BEGIN {
 ### PRIVATE METHODS
 
 sub _open_file {
-    my $file = shift;
+    my $self = shift;
+    my $file = shift || croak "No filename specified";
+
     my $fh;
 
     if ( $file =~ /\.(z|gz)$/ ) {           # Files matching .z or .gz
 
         if ( $have_io_zlib ) {
-            $fh = IO::Zlib->new("$file", "rb");
+            $fh = IO::Zlib->new( $file, "rb");
         } else {
             croak "IO::Zlib not available, cannot handle compressed files. Stopping";
         }
@@ -40,16 +42,16 @@ sub _open_file {
 }
 
 sub _get_line {
-    my $fh = shift;
+    my $self = shift;
+    my $fh   = shift;
+
     my $line = <$fh>;
 
-    if ($line) {
-        $line =~ s/\015?\012/\n/; # This is necessary to fix CRLF problem
-        chomp $line;
+    if ( $line ) {
         return $line;
     } else {
         $fh->close;
-        return undef;
+        return;
     }
 }
 
@@ -57,12 +59,14 @@ sub _get_index {
     # Given a line of code and a reference to code that extracts a
     # value from the line 'get_index' will return an index value that
     # can be used to compare the lines.
+    my $self = shift;
+    my $line = shift || croak "No line supplied";
 
-    my ( $line, $index_code_ref ) = @_;
+    my $code_ref = $self->{'index'};
 
-    my $index = $index_code_ref->($line);
+    my $index = $code_ref->($line);
 
-    if ($index) {
+    if ( $index ) {
         return $index;
     } else {
         croak "Unable to return an index. Stopping";
@@ -89,22 +93,24 @@ sub new {
                  num_files  => 0,
                };
 
+    bless $self, $class;
+
     ### CREATE A RECORD FOR EACH FILE.
     my @files;
-    my $n = 0;
-    foreach my $file ( @{$files_ref} ) {
+    foreach my $file ( @{ $files_ref } ) {
+        if ( my $fh = $self->_open_file( $file ) ) {
 
-        if ( my $fh = _open_file($file) ) {
+            $self->{'num_files'}++;     # open files
 
-            $self->{num_files}++;     # open files
-	    $files[$n]->{fh} = $fh;   # Store object.
+            my $l   = $self->_get_line( $fh );
+            my $idx = $self->_get_index( $l );
 
-            # Get line and index for each file.
-	    $files[$n]->{line}  = _get_line($fh);
-	    $files[$n]->{index} = _get_index($files[$n]->{line}, $self->{index});
+            my $f = { 'fh'    => $fh,
+                      'line'  => $l,
+                      'index' => $idx,
+                    };
 
-            $n++;
-
+            push @files, $f;
         } else {
             croak "Unable to open file, $file: $!. Stopping";
         }
@@ -115,12 +121,9 @@ sub new {
     ### values of each file.
     ### INITIAL SORT $self->{sorted}->hash
 
-    $n = 0;
-    foreach my $href ( sort { $a->{'index'} cmp $b->{'index'} } @files ) {
-	$self->{sorted}->[$n++] = $href;
-    }
+    $self->{'sorted'} = [ sort { $a->{'index'} cmp $b->{'index'} } @files ];
 
-    bless $self, $class;
+    return $self;
 } # end of new()
 
 sub next_line {
@@ -130,9 +133,9 @@ sub next_line {
     my $line = $self->{sorted}->[0]->{line} || return undef;
 
     # Re-populate LOW VALUE, i.e. $self->{sorted}->[0]
-    if ( my $nextline = _get_line($self->{sorted}->[0]->{fh}) ) {
+    if ( my $nextline = $self->_get_line($self->{sorted}->[0]->{fh}) ) {
         $self->{sorted}->[0]->{line}  = $nextline;
-        $self->{sorted}->[0]->{index} = _get_index( $nextline, $self->{index} );
+        $self->{sorted}->[0]->{index} = $self->_get_index( $nextline, $self->{index} );
     } else {
         shift @{$self->{sorted}};
         $self->{num_files}--;
@@ -170,16 +173,16 @@ sub dump {
     if ( $file ) {
         open my $fh, '>', $file or croak "Unable to create output file $file: $!";
 
-        while ( my $line = $self->next_line ) {
-            print $fh $line, "\n";
+        while ( my $line = $self->next_line() ) {
+            print $fh $line;
 	    $lines++;
         }
 
         close $fh or croak "Problems when closing output file $file: $!";
 
     } else {
-        while ( my $line = $self->next_line ) {
-            print $line, "\n";
+        while ( my $line = $self->next_line() ) {
+            print $line;
 	    $lines++;
         }
     }
@@ -378,6 +381,8 @@ Returns the number of lines output.
  + Implement a configurable record separator.
  + Allow for optional deletion of duplicate entries.
  + Ensure input is really in correct sort order - currently upto the user.
+ + Wishlist: allow filehandles rather than just files to be supplied as input and output (SREZIC)
+ + Remove chomping of records - seems evil to mess with lines.
 
 =head1 EXPORTS
 
