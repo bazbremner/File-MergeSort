@@ -385,7 +385,8 @@ Nothing: OO interface. See CONSTRUCTOR and METHODS.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2001-2009 various authors.
+ Copyright (c) 2001-2003 Christopher Brown
+               2003-2010 Barrie Bremner
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
