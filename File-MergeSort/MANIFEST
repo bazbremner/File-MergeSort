@@ -1,7 +1,7 @@
 Changes
 Makefile.PL
 MANIFEST
-MergeSort.pm
+lib/File/MergeSort.pm
 README
 t/1
 t/1.gz
