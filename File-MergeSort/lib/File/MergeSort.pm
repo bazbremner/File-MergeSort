@@ -222,34 +222,37 @@ File::MergeSort - Mergesort ordered files.
 
  use File::MergeSort;
 
+ # List of files to merge
+ my @files = qw( foo bar baz.gz );
+
+ # Function to extract merge keys from lines in files.
+ my $extract = sub { return substr( $_[0], 0, 3 ) };
+
  # Create the MergeSort object.
- my $sort = File::MergeSort->new(
-                [ $file_1, ..., $file_n ],  # Anonymous array of input files
-                \&extract_function,         # Sub to extract merge key
-                );
+ my $ms = File::MergeSort->new( \@files, $code_ref );
 
- # Retrieve the next line for processing
- my $line = $sort->next_line;
- print $line, "\n";
+ # Retrieve each line for processing
+ while ( my $line = $ms->next_line() ) {
+     # process $line ... or just print
+     print $line;
+ }
 
- # Dump remaining records in sorted order to a file.
- $sort->dump( $file );    # Omit $file to default to STDOUT
+ # Alternatively, dump all records in sorted order to a file.
+ $ms->dump( $file );    # Omit $file to default to STDOUT
 
 =head1 DESCRIPTION
 
-File::MergeSort provides methods to merge and process a number of
-B<pre-sorted> files into a single sorted output.
+File::MergeSort is a hopefully straightforward solution for situations
+where one wishes to merge data files with B<presorted> records, with
+the option to process records as they are read.
+An example might be application server logs which record events
+chronologically from a cluster.
 
 Merge keys are extracted from the input lines using a user defined
 subroutine. Comparisons on the keys are done lexicographically.
 
 If C<IO::Zlib> is installed, both plaintext and compressed (.z or .gz)
 files are catered for.
-
-File::MergeSort is a hopefully straightforward solution for situations
-where one wishes to merge data files with presorted records. An
-example might be application server logs which record events
-chronologically from a cluster.
 
 =head2 POINTS TO NOTE
 
@@ -264,15 +267,12 @@ numeric, not lexicographical comparisons.
 
 =head3 IO::Zlib is optional
 
-IO::Zlib is no longer a prerequisite.
 If IO::Zlib is installed, File::MergeSort will use it to handle
-compressed input files.
+compressed input files, but it is not necessary to install it if you
+do not wish to process compressed files.
 
 If IO::Zlib is not installed and compressed files are specified as
 input files, File::MergeSort will raise an exception.
-
-If you do not need to process compressed files, there is no longer any
-need install IO::Zlib to use File::MergeSort.
 
 =head2 DETAILS
 
@@ -286,9 +286,6 @@ As arguments, File::MergeSort takes a reference to an anonymous array
 of file paths/names and a reference to a subroutine that extracts a
 merge key from a line.
 
-The anonymous array of the filenames are the files to be sorted with
-the subroutine determining the sort order.
-
 For each file File::MergeSort opens the file using IO::File or
 IO::Zlib for compressed files.  File::MergeSort handles mixed
 compressed and uncompressed files seamlessly by detecting for files
@@ -296,11 +293,14 @@ with .z or .gz extensions.
 
 When passed a line (a scalar, passed as the first and only argument,
 $_[0]) from one of the files, the user supplied subroutine must return
-the merge key for the line.
+the merge key for the line. An exception will be raised if no merge
+key is returned.
 
-The records are then output in ascending order based on the merge
-keys returned by the user supplied subroutine.
-A stack is created based on the merge keys returned by the subroutine.
+The records are then output in ascending order based on the merge keys
+returned by the user supplied subroutine. Where there are records with
+identical merge keys in multiple files, the records are returned from
+the files in same the order the user supplies the files in the
+constructor.
 
 When the C<next_line> method is called, File::MergeSort returns the
 line with the lowest merge key/value.
@@ -314,7 +314,7 @@ line read from the input files, the C<dump> method can be used to read
 and merge the input files into the specified output file, or to STDOUT
 if no file is specified.
 
-=head1 CONSTRUCTOR
+=head1 SUBROUTINES/METHODS
 
 =over 4
 
@@ -324,23 +324,18 @@ Create a new C<File::MergeSort> object.
 
 There are two required arguments:
 
-A reference to an array of files to read from.
-These files can be either plaintext, or compressed.
-Any file with a .gz or .z suffix will be opened using C<IO::Zlib>.
+A reference to an array of files to read from. These files can be
+either plaintext, or compressed.
+Any file with a .gz or .z suffix will be assumed to be compressed and
+will be opened using C<IO::Zlib>.
 
 A code reference. When called, the coderef should return the merge key
-for a line, which is given as the only argument to that
-subroutine/coderef.
-
-=back
-
-=head1 SUBROUTINES/METHODS
-
-=over 4
+for a line, which is given as the only argument to that subroutine.
 
 =item next_line();
 
-Returns the next line from the merged input files.
+Returns the next line from the merged input files. Returns false once
+all files have been exhausted.
 
 =item dump( [ FILENAME ] );
 
@@ -365,14 +360,12 @@ Returns the number of lines output.
 
   my $sort = File::MergeSort->new( $files, \&index_sub );
 
-  while (my $line = $sort->next_line) {
+  while ( my $line = $sort->next_line() ) {
      # some operations on $line
   }
 
   sub index_sub {
-
     # Use this to extract a date of the form mm-dd-yyyy.
-
     my $line = shift;
 
     # Be cautious that only the date will be extracted.
@@ -381,7 +374,6 @@ Returns the number of lines output.
     return "$3$1$2";  # Index is an integer, yyyymmdd
                       # Lower number will be read first.
   }
-
 
 
   # This slightly more compact example performs a simple merge of
@@ -399,7 +391,7 @@ Returns the number of lines output.
 
 =head1 EXPORTS
 
-Nothing: OO interface. See CONSTRUCTOR and METHODS.
+Nothing: OO interface. See SUBROUTINES/METHODS.
 
 =head1 AUTHOR
 
@@ -422,14 +414,6 @@ Laura Cooney.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
-
-=head1 TODO
-
- + Implement a generic test/comparison function to replace text/numeric comparison.
- + Implement a configurable record separator.
- + Allow for optional deletion of duplicate entries.
- + Ensure input is really in correct sort order - currently upto the user.
- + Wishlist: allow filehandles rather than just files to be supplied as input and output (SREZIC)
 
 =head1 SEE ALSO
 
