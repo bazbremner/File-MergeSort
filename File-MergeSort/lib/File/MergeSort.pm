@@ -43,19 +43,19 @@ sub _open_file {
 
 # Yes, I'm really closing filehandles, just trying to be consistent
 # with the _open_file counterpart.
-sub _close_file {   
+sub _close_file {
     my $self = shift;
     my $fh   = shift;
 
     $fh->close() or croak "Problems closing filehandle: $!";
-    
+
     $self->{'open_files'}--;
     return 1;
 }
 
 sub _get_line {
     my $self = shift;
-    my $fh   = shift;
+    my $fh   = shift || croak 'No filehandle supplied';
 
     my $line = <$fh>;
 
@@ -70,8 +70,7 @@ sub _get_index {
     my $line = shift || croak 'No line supplied';
 
     my $code_ref = $self->{'index'};
-
-    my $index = $code_ref->( $line );
+    my $index    = $code_ref->( $line );
 
     if ( $index ) {
         return $index;
@@ -95,7 +94,6 @@ sub new {
 	croak 'Code reference required for merge key extraction';
     }
 
-    ### CREATE SKELETON OBJECT
     my $self = { index      => $index_ref,
                  open_files => 0,
                };
@@ -103,61 +101,86 @@ sub new {
     bless $self, $class;
 
     my @files;
+    my $i = 0;
     foreach my $file ( @{ $files_ref } ) {
         my $fh  = $self->_open_file( $file );
         my $l   = $self->_get_line( $fh );
         my $idx = $self->_get_index( $l );
-        
+
         my $f = { 'fh'    => $fh,
                   'line'  => $l,
                   'index' => $idx,
-        };
+                  'pref'  => $i++, # preference: take the records from the files in the order specified.
+                };
 
         push @files, $f;
     }
 
-    ### Now that the first records are complete for each file, SORT
-    ### THEM.  Create a sorted array of hashrefs based on the index
-    ### values of each file.
-    ### INITIAL SORT $self->{sorted}->hash
-
-    $self->{'sorted'} = [ sort { $a->{'index'} cmp $b->{'index'} } @files ];
+    # Now that the first records are complete for each file, sort them
+    # by merge key then file order.  Create a sorted array of hashrefs
+    # based on the index values of each file.
+    $self->{'stack'} = [ sort {    $a->{'index'} cmp $b->{'index'}
+                                || $a->{'pref'}  <=> $b->{'pref'}
+                              } @files ];
 
     return $self;
 }
 
-# Main method.  This returns the next line from the stack.
 sub next_line {
-
     my $self = shift;
-    my $line = $self->{'sorted'}->[0]->{line} || return;
 
-    # Re-populate LOW VALUE, i.e. $self->{sorted}->[0]
-    if ( my $nextline = $self->_get_line($self->{sorted}->[0]->{'fh'}) ) {
-        $self->{sorted}->[0]->{'line'}  = $nextline;
-        $self->{sorted}->[0]->{'index'} = $self->_get_index( $nextline, $self->{'index'} );
+    my $pick = shift @{ $self->{'stack'} };
+    my $line = $pick->{'line'} || return;
+
+    # Abandon sorting when there is only one file left.
+    return $line if $self->{'open_files'} <= 1;
+
+    # Re-populate invalidated data in the shifted structure, before
+    # reinserting into stack.
+    my $nextline = $self->_get_line( $pick->{'fh'} );
+
+    if ( $nextline ) {
+        $pick->{'line'}  = $nextline;
+        $pick->{'index'} = $self->_get_index( $nextline );
     } else {
-        my $to_close = shift @{ $self->{'sorted'} };
-        $self->_close_file( $to_close->{'fh'} );
+        $self->_close_file( $pick->{'fh'} );
     }
 
-    ### One Pass Bubble Sort of $self->{sorted}
-    ### We only need to find the new positions in the stack for the
-    ### new index of the file.
+    # Re-organise the 'stack' structure to insert the newly fetched
+    # data into the correct position for the next call. Since it
+    # begins as a sorted array, and we only need to insert one element
+    # in the appropriate position in the array, we can abandon the
+    # loop as soon as we hit the right spot.
+    # There may be room for optimisation here. Algorithms and/or tips
+    # welcome.
 
-    return $line if $self->{'open_files'} <= 1; # Abandon sorting when there is only one file left.
+    # Scan the array for the point where:
+
+    # * The index of the element to insert is the less than than the
+    # element in the array
+
+    # ...or...
+
+    # * The index of the element to insert is the same as that in the
+    # array, but the preference of the element to insert is lower -
+    # this is so that data is consistently fed in from the source
+    # files in the order specified in the constuctor.
+
+    # Previous behaviour can be had with last if $_->{'index'} ge $pick->{'index'};
 
     my $i = 0;
-    while ( $self->{'sorted'}->[$i]->{index} gt $self->{'sorted'}->[$i+1]->{index} ) {
 
-        # Swap elements
-        my $place_holder = $self->{'sorted'}->[$i];
-        $self->{'sorted'}->[$i]   = $self->{'sorted'}->[$i+1];
-        $self->{'sorted'}->[$i+1] = $place_holder;
-
+    foreach ( @{ $self->{'stack'} } ) {
+        if (      $_->{'index'} gt $pick->{'index'}
+             || ( $_->{'index'} eq $pick->{'index'} && $pick->{'pref'} <= $_->{'pref'} )
+           ) {
+            last;
+        }
         $i++;
-        last if ($i > $self->{'open_files'} - 2);
     }
+
+    # And stuff the fresh data in the appropriate place.
+    splice @{ $self->{'stack'} }, $i, 0, $pick;
 
     return $line;
 }
@@ -178,7 +201,6 @@ sub dump {
         }
 
         close $fh or croak "Problems closing output file $file: $!";
-
     } else {
         while ( my $line = $self->next_line() ) {
             print $line;
@@ -317,7 +339,7 @@ subroutine/coderef.
 
 =over 4
 
-=item next_line( );
+=item next_line();
 
 Returns the next line from the merged input files.
 
@@ -380,14 +402,6 @@ Returns the number of lines output.
 
 Nothing: OO interface. See CONSTRUCTOR and METHODS.
 
-=head1 LICENSE AND COPYRIGHT
-
- Copyright (c) 2001-2003 Christopher Brown
-               2003-2010 Barrie Bremner
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
-
 =head1 AUTHOR
 
 =head2 Original Author
@@ -402,6 +416,14 @@ Barrie Bremner L<http://barriebremner.com/>.
 
 Laura Cooney.
 
+=head1 LICENSE AND COPYRIGHT
+
+ Copyright (c) 2001-2003 Christopher Brown
+               2003-2010 Barrie Bremner
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
 =head1 TODO
 
  + Implement a generic test/comparison function to replace text/numeric comparison.
@@ -409,7 +431,6 @@ Laura Cooney.
  + Allow for optional deletion of duplicate entries.
  + Ensure input is really in correct sort order - currently upto the user.
  + Wishlist: allow filehandles rather than just files to be supplied as input and output (SREZIC)
- + Remove chomping of records - seems evil to mess with lines.
 
 =head1 SEE ALSO
 

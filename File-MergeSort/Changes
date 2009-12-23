@@ -1,6 +1,12 @@
 Revision history for Perl extension File::MergeSort.
-1.20  Sat Dec 19 2009
-    - After a rather long break, clean up and simplify code 
+1.20  Wed Dec 23 2009
+    - After a rather long break, clean up and simplify code.
+    - This module no longer strips line endings from the lines read
+      in.
+    - Where the records to be read from input files have the same
+      merge keys they will now be read in the order the files were
+      supplied to the constructor - this should give a more
+      predictable output. Thanks to Randy Osburn for the suggestion.
 
 1.14  Sat Jan 28 2006
     - Fix problem with distribution, clearly v1.13 was unlucky ;-)
