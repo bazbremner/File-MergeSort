@@ -4,8 +4,6 @@ use 5.006;
 use warnings;
 use strict;
 
-use lib '/Users/baz/code/projects/File-MergeSort/lib/';
-
 my $have_io_zlib;
 
 BEGIN {
