@@ -4,6 +4,8 @@ use 5.006;
 use warnings;
 use strict;
 
+use lib '/Users/baz/code/projects/File-MergeSort/lib/';
+
 my $have_io_zlib;
 
 BEGIN {
@@ -14,15 +16,18 @@ BEGIN {
     }
 }
 
-use Test::More 'no_plan';
+use Test::More;
 
-exit 0 unless $have_io_zlib;
+if ( $have_io_zlib ) {
+    plan 'no_plan';
+} else {
+    plan skip_all => 'IO::Zlib not available';
+}
 
 BEGIN { use_ok('IO::File') };         # test 1
 BEGIN { use_ok('File::MergeSort') };  # test 2
 use_ok('IO::Zlib');                   # test 3
 
-my $m;
 my @compress_files   = qw( t/1.gz t/2.gz );
 my @uncompress_files = qw( t/1 t/2 );
 my @mix_files        = qw( t/1.gz t/2 );
@@ -31,11 +36,13 @@ my $coderef = sub { my $line = shift; substr($line,0,2); };
 
 # Test 4: create object with purely compressed files.
 
+my $m;
+
 eval {
     $m = File::MergeSort->new( \@compress_files, $coderef );
 };
 
-ok( ref $m eq 'File::MergeSort'); # test 4
+ok( ref $m eq 'File::MergeSort' ); # test 4
 
 my $in_lines = 0;
 
@@ -45,7 +52,7 @@ foreach my $file ( @uncompress_files ) {
     close $fh or die "Problems closing test file, $file: $!";
 }
 
-my $d = $m->dump();
+my $d = $m->dump('t/output_from_compressed');
 
 ok($d eq $in_lines); # test 5
 

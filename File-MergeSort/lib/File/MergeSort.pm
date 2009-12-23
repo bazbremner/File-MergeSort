@@ -1,7 +1,5 @@
 package File::MergeSort;
 
-our $VERSION = '1.15';
-
 use 5.006;     # 5.6.0
 use strict;
 use warnings;
@@ -9,10 +7,12 @@ use warnings;
 use Carp;
 use IO::File;
 
+our $VERSION = '1.20';
+
 my $have_io_zlib;
 
 BEGIN {
-    eval "require IO::Zlib";
+    eval { require IO::Zlib; };
     unless ( $@ ) {
         require IO::Zlib;
         $have_io_zlib++;
@@ -23,22 +23,34 @@ BEGIN {
 
 sub _open_file {
     my $self = shift;
-    my $file = shift || croak "No filename specified";
+    my $file = shift || croak 'No filename specified';
 
     my $fh;
 
-    if ( $file =~ /\.(z|gz)$/ ) {           # Files matching .z or .gz
-
+    if ( $file =~ /[.](z|gz)$/ ) { # Files matching .z or .gz
         if ( $have_io_zlib ) {
-            $fh = IO::Zlib->new( $file, "rb");
+            $fh = IO::Zlib->new( $file, 'rb' ) or croak "Failed to open file $file: $!";
         } else {
-            croak "IO::Zlib not available, cannot handle compressed files. Stopping";
+            croak 'IO::Zlib not available, cannot handle compressed files. Stopping';
         }
     } else {
-        $fh = new IO::File "< $file";
+        $fh = IO::File->new( $file, '<' ) or croak "Failed to open file $file: $!";
     }
 
-    return $fh || undef;
+    $self->{'open_files'}++;
+    return $fh;
+}
+
+# Yes, I'm really closing filehandles, just trying to be consistent
+# with the _open_file counterpart.
+sub _close_file {   
+    my $self = shift;
+    my $fh   = shift;
+
+    $fh->close() or croak "Problems closing filehandle: $!";
+    
+    $self->{'open_files'}--;
+    return 1;
 }
 
 sub _get_line {
@@ -47,29 +59,24 @@ sub _get_line {
 
     my $line = <$fh>;
 
-    if ( $line ) {
-        return $line;
-    } else {
-        $fh->close;
-        return;
-    }
+    return $line;
 }
 
+# Given a line of input and a code reference that extracts a value
+# from the line, return an index value that can be used to compare the
+# lines.
 sub _get_index {
-    # Given a line of code and a reference to code that extracts a
-    # value from the line 'get_index' will return an index value that
-    # can be used to compare the lines.
     my $self = shift;
-    my $line = shift || croak "No line supplied";
+    my $line = shift || croak 'No line supplied';
 
     my $code_ref = $self->{'index'};
 
-    my $index = $code_ref->($line);
+    my $index = $code_ref->( $line );
 
     if ( $index ) {
         return $index;
     } else {
-        croak "Unable to return an index. Stopping";
+        croak 'Unable to return an index. Stopping';
     }
 }
 
@@ -80,40 +87,33 @@ sub new {
     my $files_ref = shift;      # ref to array of files.
     my $index_ref = shift;      # ref to sub that will extract index value from line
 
-    unless ( ref $files_ref eq "ARRAY" && @$files_ref ) {
-	croak "Array reference of input files required";
+    unless ( ref $files_ref eq 'ARRAY' && @{ $files_ref } ) {
+	croak 'Array reference of input files required';
     }
 
-    unless ( ref $index_ref eq "CODE" ) {
-	croak "Code reference required for merge key extraction";
+    unless ( ref $index_ref eq 'CODE' ) {
+	croak 'Code reference required for merge key extraction';
     }
 
     ### CREATE SKELETON OBJECT
     my $self = { index      => $index_ref,
-                 num_files  => 0,
+                 open_files => 0,
                };
 
     bless $self, $class;
 
-    ### CREATE A RECORD FOR EACH FILE.
     my @files;
     foreach my $file ( @{ $files_ref } ) {
-        if ( my $fh = $self->_open_file( $file ) ) {
+        my $fh  = $self->_open_file( $file );
+        my $l   = $self->_get_line( $fh );
+        my $idx = $self->_get_index( $l );
+        
+        my $f = { 'fh'    => $fh,
+                  'line'  => $l,
+                  'index' => $idx,
+        };
 
-            $self->{'num_files'}++;     # open files
-
-            my $l   = $self->_get_line( $fh );
-            my $idx = $self->_get_index( $l );
-
-            my $f = { 'fh'    => $fh,
-                      'line'  => $l,
-                      'index' => $idx,
-                    };
-
-            push @files, $f;
-        } else {
-            croak "Unable to open file, $file: $!. Stopping";
-        }
+        push @files, $f;
     }
 
     ### Now that the first records are complete for each file, SORT
@@ -124,61 +124,60 @@ sub new {
     $self->{'sorted'} = [ sort { $a->{'index'} cmp $b->{'index'} } @files ];
 
     return $self;
-} # end of new()
+}
 
+# Main method.  This returns the next line from the stack.
 sub next_line {
-    ### Main method.  This returns the next line from the stack.
 
     my $self = shift;
-    my $line = $self->{sorted}->[0]->{line} || return undef;
+    my $line = $self->{'sorted'}->[0]->{line} || return;
 
     # Re-populate LOW VALUE, i.e. $self->{sorted}->[0]
-    if ( my $nextline = $self->_get_line($self->{sorted}->[0]->{fh}) ) {
-        $self->{sorted}->[0]->{line}  = $nextline;
-        $self->{sorted}->[0]->{index} = $self->_get_index( $nextline, $self->{index} );
+    if ( my $nextline = $self->_get_line($self->{sorted}->[0]->{'fh'}) ) {
+        $self->{sorted}->[0]->{'line'}  = $nextline;
+        $self->{sorted}->[0]->{'index'} = $self->_get_index( $nextline, $self->{'index'} );
     } else {
-        shift @{$self->{sorted}};
-        $self->{num_files}--;
+        my $to_close = shift @{ $self->{'sorted'} };
+        $self->_close_file( $to_close->{'fh'} );
     }
 
     ### One Pass Bubble Sort of $self->{sorted}
     ### We only need to find the new positions in the stack for the
     ### new index of the file.
 
-    return $line if $self->{num_files} <= 1; # Abandon sorting when there is only one file left.
+    return $line if $self->{'open_files'} <= 1; # Abandon sorting when there is only one file left.
 
     my $i = 0;
-    while ( $self->{sorted}->[$i]->{index} gt $self->{sorted}->[$i+1]->{index} ) {
+    while ( $self->{'sorted'}->[$i]->{index} gt $self->{'sorted'}->[$i+1]->{index} ) {
 
         # Swap elements
-        my $place_holder = $self->{sorted}->[$i];
-        $self->{sorted}->[$i]   = $self->{sorted}->[$i+1];
-        $self->{sorted}->[$i+1] = $place_holder;
+        my $place_holder = $self->{'sorted'}->[$i];
+        $self->{'sorted'}->[$i]   = $self->{'sorted'}->[$i+1];
+        $self->{'sorted'}->[$i+1] = $place_holder;
 
         $i++;
-        last if ($i > $self->{num_files} - 2);
+        last if ($i > $self->{'open_files'} - 2);
     }
 
     return $line;
 }
 
+# Dump the contents of the file to either STDOUT (default).
 sub dump {
-    # Dump the contents of the file to either STDOUT or FILE.
-    # Default: STDOUT
-
-    my ( $self, $file ) = @_;
+    my $self = shift;
+    my $file = shift; # optional
 
     my $lines = 0;
 
     if ( $file ) {
-        open my $fh, '>', $file or croak "Unable to create output file $file: $!";
+        open my $fh, '>',  $file or croak "Unable to create output file $file: $!";
 
         while ( my $line = $self->next_line() ) {
             print $fh $line;
 	    $lines++;
         }
 
-        close $fh or croak "Problems when closing output file $file: $!";
+        close $fh or croak "Problems closing output file $file: $!";
 
     } else {
         while ( my $line = $self->next_line() ) {
@@ -191,6 +190,8 @@ sub dump {
 }
 
 1;
+
+__END__
 
 =head1 NAME
 
@@ -312,7 +313,7 @@ subroutine/coderef.
 
 =back
 
-=head1 METHODS
+=head1 SUBROUTINES/METHODS
 
 =over 4
 
@@ -375,20 +376,11 @@ Returns the number of lines output.
 
   $sort->dump( "output_file" );
 
-=head1 TODO
-
- + Implement a generic test/comparison function to replace text/numeric comparison.
- + Implement a configurable record separator.
- + Allow for optional deletion of duplicate entries.
- + Ensure input is really in correct sort order - currently upto the user.
- + Wishlist: allow filehandles rather than just files to be supplied as input and output (SREZIC)
- + Remove chomping of records - seems evil to mess with lines.
-
 =head1 EXPORTS
 
 Nothing: OO interface. See CONSTRUCTOR and METHODS.
 
-=head1 COPYRIGHT AND LICENSE
+=head1 LICENSE AND COPYRIGHT
 
  Copyright (c) 2001-2003 Christopher Brown
                2003-2010 Barrie Bremner
@@ -396,7 +388,7 @@ Nothing: OO interface. See CONSTRUCTOR and METHODS.
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
-=head1 AUTHORS
+=head1 AUTHOR
 
 =head2 Original Author
 
@@ -409,6 +401,15 @@ Barrie Bremner L<http://barriebremner.com/>.
 =head2 Contributors
 
 Laura Cooney.
+
+=head1 TODO
+
+ + Implement a generic test/comparison function to replace text/numeric comparison.
+ + Implement a configurable record separator.
+ + Allow for optional deletion of duplicate entries.
+ + Ensure input is really in correct sort order - currently upto the user.
+ + Wishlist: allow filehandles rather than just files to be supplied as input and output (SREZIC)
+ + Remove chomping of records - seems evil to mess with lines.
 
 =head1 SEE ALSO
 
