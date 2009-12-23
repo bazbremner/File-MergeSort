@@ -37,7 +37,6 @@ sub _open_file {
         $fh = IO::File->new( $file, '<' ) or croak "Failed to open file $file: $!";
     }
 
-    $self->{'open_files'}++;
     return $fh;
 }
 
@@ -49,7 +48,6 @@ sub _close_file {
 
     $fh->close() or croak "Problems closing filehandle: $!";
 
-    $self->{'open_files'}--;
     return 1;
 }
 
@@ -94,8 +92,8 @@ sub new {
 	croak 'Code reference required for merge key extraction';
     }
 
-    my $self = { index      => $index_ref,
-                 open_files => 0,
+    my $self = { index => $index_ref,
+                 stack => [],
                };
 
     bless $self, $class;
@@ -130,10 +128,9 @@ sub next_line {
     my $self = shift;
 
     my $pick = shift @{ $self->{'stack'} };
-    my $line = $pick->{'line'} || return;
+    return unless $pick;
 
-    # Abandon sorting when there is only one file left.
-    return $line if $self->{'open_files'} <= 1;
+    my $line = $pick->{'line'};
 
     # Re-populate invalidated data in the shifted structure, before
     # reinserting into stack.
@@ -143,7 +140,10 @@ sub next_line {
         $pick->{'line'}  = $nextline;
         $pick->{'index'} = $self->_get_index( $nextline );
     } else {
+        # File exhausted, close and return last line, no need to
+        # proceed onto juggling stack.
         $self->_close_file( $pick->{'fh'} );
+        return $line;
     }
 
     # Re-organise the 'stack' structure to insert the newly fetched
@@ -167,7 +167,6 @@ sub next_line {
     # files in the order specified in the constuctor.
 
     # Previous behaviour can be had with last if $_->{'index'} ge $pick->{'index'};
-
     my $i = 0;
 
     foreach ( @{ $self->{'stack'} } ) {
