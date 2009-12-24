@@ -309,6 +309,8 @@ if no file is specified.
 
 =head1 SUBROUTINES/METHODS
 
+=over
+
 =item new( ARRAY_REF, CODE_REF );
 
 Create a new C<File::MergeSort> object.
@@ -334,6 +336,8 @@ Reads and merges from the input files to FILENAME, or STDOUT if
 FILENAME is not given, until all files have been exhausted.
 
 Returns the number of lines output.
+
+=back
 
 =head1 EXAMPLES
 
