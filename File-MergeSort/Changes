@@ -1,4 +1,9 @@
 Revision history for Perl extension File::MergeSort.
+1.21  Thu Dec 24 2009
+    - Fix a silly error in a test script that was causing
+      Test::Pod::Coverage to be incorrectly utilised, breaking tests
+      where that module was available.
+
 1.20  Wed Dec 23 2009
     - After a rather long break, clean up code slightly.
     - This module no longer strips line endings from the lines read
