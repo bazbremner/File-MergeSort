@@ -279,9 +279,6 @@ input files, File::MergeSort will raise an exception.
 The user is expected to supply a list of file pathnames and a function
 to extract an index value from each record line (the merge key).
 
-By calling the "next_line" or "dump" function, the user can retrieve
-the records in an ordered manner.
-
 As arguments, File::MergeSort takes a reference to an anonymous array
 of file paths/names and a reference to a subroutine that extracts a
 merge key from a line.
@@ -296,18 +293,14 @@ $_[0]) from one of the files, the user supplied subroutine must return
 the merge key for the line. An exception will be raised if no merge
 key is returned.
 
+When the C<next_line> method is called, File::MergeSort returns the
+line with the lowest merge key/value.
+
 The records are then output in ascending order based on the merge keys
 returned by the user supplied subroutine. Where there are records with
 identical merge keys in multiple files, the records are returned from
 the files in same the order the user supplies the files in the
 constructor.
-
-When the C<next_line> method is called, File::MergeSort returns the
-line with the lowest merge key/value.
-
-File::MergeSort then replenishes the stack, reads a new line from the
-corresponding file and places it in the proper position for the next
-call to C<next_line>.
 
 If a simple merge is required, without any user processing of each
 line read from the input files, the C<dump> method can be used to read
@@ -315,8 +308,6 @@ and merge the input files into the specified output file, or to STDOUT
 if no file is specified.
 
 =head1 SUBROUTINES/METHODS
-
-=over 4
 
 =item new( ARRAY_REF, CODE_REF );
 
@@ -343,8 +334,6 @@ Reads and merges from the input files to FILENAME, or STDOUT if
 FILENAME is not given, until all files have been exhausted.
 
 Returns the number of lines output.
-
-=back
 
 =head1 EXAMPLES
 
