@@ -4,12 +4,12 @@ use 5.006;
 use warnings;
 use strict;
 
-use Test::More 'no_plan';
+use Test::More tests => 6;
 
 BEGIN { use_ok('IO::File') };         # test 1
 BEGIN { use_ok('File::MergeSort') };  # test 2
 
-my @files = qw( t/1 t/2 t/3 t/4 t/5 t/6 );
+my @files = qw( t/1 t/2 t/3 t/4 );
 my $coderef = sub { my $line = shift; substr($line,0,2); };
 
 my $m;
@@ -17,7 +17,7 @@ eval {
     $m = File::MergeSort->new( \@files, $coderef );
 };
 
-ok( ref $m eq 'File::MergeSort'); # test 3
+ok( ref $m eq 'File::MergeSort', 'Module instantiated' ); # test 3
 
 my $in_lines = 0;
 
@@ -33,7 +33,7 @@ eval {
     $d = $m->dump("t/output");
 };
 
-ok($d eq $in_lines); # test 4
+ok( $d eq $in_lines, 'Expected number of lines output reported' ); # test 4
 
 my $out_lines = 0;
 
@@ -41,27 +41,25 @@ open my $fh, '<', 't/output' or die "Unable to open test output: $!";
 while (<$fh>) { $out_lines++ };
 close $fh or die "Problems closing test output: $!";
 
-ok($d eq $out_lines); # test 5
+ok( $d eq $out_lines, 'Expected number of lines actually output' ); # test 5
 
 if (-f "t/output") {
     unlink "t/output" or die "Unable to unlink test output: $!";
 }
 
-eval {
-    $m = File::MergeSort->new( \@files, $coderef );
-};
+# Check that records are really output in sort order, then file
+# preference order, as documented.
 
-# Check data being returned by next_line really is in sorted order.
+$m = File::MergeSort->new( [ 't/5', 't/6' ], sub { return substr($_[0], 0, 2) } );
 
+my $fail = 0;
 my $i = 0;
-my $last;
-
+my ( $last_k, $last_f );
 while ( my $line = $m->next_line() ) {
-    my $key = $coderef->( $line );
-    ok( $key ge $last) if $i > 1;
-    $last = $key;
-    $i++;
+    my ( $key, $file ) = unpack( 'A3A1', $line );
+    if ( $i > 0 ) {
+        $fail++ unless ( $key ge $last_k && $file ge $last_f );
+    }
 }
 
-ok($i eq $out_lines );
-
+ok( 0 == $fail, 'Records in expected order' ); # test 6

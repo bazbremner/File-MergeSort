@@ -1,5 +1,6 @@
 # -*- cperl -*-
 use Test::More;
+
 eval "use Test::Pod";
 plan skip_all => "Test::Pod required for testing POD" if $@;
 

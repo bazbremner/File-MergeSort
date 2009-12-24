@@ -54,6 +54,10 @@ my $d = $m->dump('t/output_from_compressed');
 
 ok($d eq $in_lines); # test 5
 
+if ( -f 't/output_from_compressed' ) {
+    unlink 't/output_from_compressed' or warn "Failed to unlink output_from_compressed test file";
+}
+
 # Test 6: create object with mixed compressed/uncompress files.
 
 eval {
