@@ -17,7 +17,7 @@ BEGIN {
 use Test::More;
 
 if ( $have_io_zlib ) {
-    plan 'no_plan';
+    plan tests => 9;
 } else {
     plan skip_all => 'IO::Zlib not available';
 }
@@ -78,12 +78,15 @@ eval {
 
 my $i = 0;
 my $last;
-
+my $fail = 0;
 while ( my $line = $m->next_line() ) {
     my $key = $coderef->( $line );
-    ok( $key ge $last) if $i > 1;
+    if ( $i > 1 ) {
+        $fail++ unless $key ge $last;
+    }
     $last = $key;
     $i++;
 }
 
-ok($i eq $in_lines );
+ok( 0 == $fail , 'All keys in expected order' ); # test 8
+ok($i eq $in_lines ); # test 9
