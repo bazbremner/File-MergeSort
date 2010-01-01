@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                File-MergeSort
-version:             1.21
+version:             1.22
 abstract:            Mergesort ordered files.
 license:             perl
 author:              

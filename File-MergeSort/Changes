@@ -1,4 +1,9 @@
 Revision history for Perl extension File::MergeSort.
+1.22  Fri Jan 1 2010
+    - Add ability to skip blank lines in the input files (RT #39969)
+    - Improve tests slightly
+    - Tweak Makefile.PL to include license
+
 1.21  Thu Dec 24 2009
     - Fix a silly error in a test script that was causing
       Test::Pod::Coverage to be incorrectly utilised, breaking tests
