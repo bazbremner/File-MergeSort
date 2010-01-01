@@ -17,14 +17,15 @@ BEGIN {
 use Test::More;
 
 if ( $have_io_zlib ) {
-    plan tests => 9;
+    # Set after BEGIN blocks, so 8, not 9 tests.
+    plan tests => 8;
 } else {
     plan skip_all => 'IO::Zlib not available';
 }
 
-BEGIN { use_ok('IO::File') };         # test 1
-BEGIN { use_ok('File::MergeSort') };  # test 2
-use_ok('IO::Zlib');                   # test 3
+BEGIN { use_ok('File::MergeSort') };  # test 0 (not part of plan)
+use_ok('IO::File');   # test 1
+use_ok('IO::Zlib');   # test 2
 
 my @compress_files   = qw( t/1.gz t/2.gz );
 my @uncompress_files = qw( t/1 t/2 );
@@ -32,7 +33,7 @@ my @mix_files        = qw( t/1.gz t/2 );
 
 my $coderef = sub { my $line = shift; substr($line,0,2); };
 
-# Test 4: create object with purely compressed files.
+# Test 3: create object with purely compressed files.
 
 my $m;
 
@@ -40,7 +41,7 @@ eval {
     $m = File::MergeSort->new( \@compress_files, $coderef );
 };
 
-ok( ref $m eq 'File::MergeSort' ); # test 4
+ok( ref $m eq 'File::MergeSort', 'File::MergeSort object created' ); # test 3
 
 my $in_lines = 0;
 
@@ -52,23 +53,23 @@ foreach my $file ( @uncompress_files ) {
 
 my $d = $m->dump('t/output_from_compressed');
 
-ok($d eq $in_lines); # test 5
+ok($d eq $in_lines, 'dump() reporting expected number of lines output' ); # test 4
 
 if ( -f 't/output_from_compressed' ) {
     unlink 't/output_from_compressed' or warn "Failed to unlink output_from_compressed test file";
 }
 
-# Test 6: create object with mixed compressed/uncompress files.
+# Test 5: create object with mixed compressed/uncompress files.
 
 eval {
     $m = File::MergeSort->new( \@mix_files, $coderef );
 };
 
-ok( ref $m eq 'File::MergeSort'); # test 6
+ok( ref $m eq 'File::MergeSort'); # test 5
 
 $d = $m->dump();
 
-ok($d eq $in_lines); # test 7
+ok( $d eq $in_lines, 'dump() reporting expected number of lines output'); # test 6
 
 eval {
     $m = File::MergeSort->new( \@compress_files, $coderef );
@@ -88,5 +89,5 @@ while ( my $line = $m->next_line() ) {
     $i++;
 }
 
-ok( 0 == $fail , 'All keys in expected order' ); # test 8
-ok($i eq $in_lines ); # test 9
+ok( 0 == $fail , 'All keys in expected order' ); # test 7
+ok($i eq $in_lines, 'Expected number of lines output' ); # test 8
