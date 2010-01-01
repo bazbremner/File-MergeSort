@@ -55,8 +55,15 @@ sub _get_line {
     my $self = shift;
     my $fh   = shift || croak 'No filehandle supplied';
 
-    my $line = <$fh>;
+    my $line;
 
+    if ( $self->{'skip_empty'} ) {
+	do {
+	    $line = <$fh>;
+	} until ( $line =~ /^$/ || ! defined $line );
+    } else {
+	$line = <$fh>;
+    }
     return $line;
 }
 
@@ -83,6 +90,7 @@ sub new {
     my $class     = shift;
     my $files_ref = shift;      # ref to array of files.
     my $index_ref = shift;      # ref to sub that will extract index value from line
+    my $opts_ref  = shift;      # ref to hash of options, optional.
 
     unless ( ref $files_ref eq 'ARRAY' && @{ $files_ref } ) {
 	croak 'Array reference of input files required';
@@ -92,8 +100,13 @@ sub new {
 	croak 'Code reference required for merge key extraction';
     }
 
-    my $self = { index => $index_ref,
-                 stack => [],
+    if ( $opts_ref && $opts_ref ne 'HASH' ) {
+	croak 'Options should be supplied as a hash reference';
+    }
+
+    my $self = { index       => $index_ref,
+                 stack       => [],
+		 skip_empty => $opts_ref->{'skip_empty_lines'} ? 1 : 0,
                };
 
     bless $self, $class;
@@ -225,11 +238,14 @@ File::MergeSort - Mergesort ordered files.
  # List of files to merge
  my @files = qw( foo bar baz.gz );
 
+ # Optional hash with options to modify behaviour of File::MergeSort.
+ my %opts = ( skip_empty_lines => 1 );
+
  # Function to extract merge keys from lines in files.
  my $extract = sub { return substr( $_[0], 0, 3 ) };
 
  # Create the MergeSort object.
- my $ms = File::MergeSort->new( \@files, $code_ref );
+ my $ms = File::MergeSort->new( \@files, $code_ref, \%opts );
 
  # Retrieve each line for processing
  while ( my $line = $ms->next_line() ) {
@@ -311,19 +327,26 @@ if no file is specified.
 
 =over
 
-=item new( ARRAY_REF, CODE_REF );
+=item new( ARRAY_REF, CODE_REF [ , HASH_REF ] );
 
 Create a new C<File::MergeSort> object.
 
-There are two required arguments:
+There are two required arguments and one optional argument:
 
-A reference to an array of files to read from. These files can be
-either plaintext, or compressed.
+A reference to an array of files to read from (required). These files
+can be either plaintext, or compressed.
 Any file with a .gz or .z suffix will be assumed to be compressed and
 will be opened using C<IO::Zlib>.
 
-A code reference. When called, the coderef should return the merge key
-for a line, which is given as the only argument to that subroutine.
+A code reference (required). When called, the coderef should return
+the merge key for a line, which is given as the only argument to that
+subroutine.
+
+A hash reference (optional). Supply additional options to modify the
+behaviour of File::MergeSort. Currently the only option is
+skip_empty_lines, which if true will cause File::MergeSort to silently
+skip over empty lines (those matching m/^$/). By default empty/blank
+lines will be processed no differently than any other. See EXAMPLES.
 
 =item next_line();
 
@@ -342,7 +365,8 @@ Returns the number of lines output.
 =head1 EXAMPLES
 
   # This program looks at files found in /logfiles, returns the
-  # records of the files sorted by the date in mm/dd/yyyy format
+  # records of the files sorted by the date in mm/dd/yyyy format.
+  # Empty lines in the input files will be skipped.
 
   use File::MergeSort;
 
@@ -351,7 +375,9 @@ Returns the number of lines output.
                     logfiles/log_server_3.log
                 ) ];
 
-  my $sort = File::MergeSort->new( $files, \&index_sub );
+  my $opts = { skip_empty_lines => 1 }; 
+
+  my $sort = File::MergeSort->new( $files, \&index_sub, $opts );
 
   while ( my $line = $sort->next_line() ) {
      # some operations on $line
