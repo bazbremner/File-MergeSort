@@ -4,6 +4,7 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile('NAME'         => 'File::MergeSort',
 	      'VERSION_FROM' => 'lib/File/MergeSort.pm', # finds $VERSION
+	      'LICENSE'      => 'perl',
 	      'PREREQ_PM'    => { 'IO::File'   => '0',
 				  'Test::More' => '0',
 				},

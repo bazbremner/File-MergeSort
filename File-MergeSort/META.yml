@@ -1,23 +1,20 @@
 --- #YAML:1.0
-name: File-MergeSort
-abstract: Mergesort ordered files
-version: 1.21
-author:
-  - Barrie Bremner (BREMNERB)
-  - Chris Brown (CTBROWN)
-license: perl
-installdirs: site
-requires:
+name:                File-MergeSort
+version:             1.21
+abstract:            Mergesort ordered files.
+license:             perl
+author:              
+    - Barrie Bremner
+    - Chris Brown
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
     IO::File:                      0
     Test::More:                    0
 recommends:
     IO::Zlib                       0
     Test::Pod::Coverage            1.00
     Test::Pod                      1.00
-distribution_type: module
-resources:
-  license: http://dev.perl.org/licenses/
 meta-spec:
-  version: 1.4
-  url: http://module-build.sourceforge.net/META-spec-v1.4.html
-generated_by: Barrie Bremner
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
