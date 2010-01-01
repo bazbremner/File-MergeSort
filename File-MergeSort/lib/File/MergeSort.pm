@@ -60,7 +60,7 @@ sub _get_line {
     if ( $self->{'skip_empty'} ) {
 	do {
 	    $line = <$fh>;
-	} until ( $line =~ /^$/ || ! defined $line );
+	} until ( ! defined $line || $line !~ /^$/ );
     } else {
 	$line = <$fh>;
     }
