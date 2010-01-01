@@ -4,7 +4,7 @@ use 5.006;
 use warnings;
 use strict;
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 BEGIN { use_ok('IO::File') };         # test 1
 BEGIN { use_ok('File::MergeSort') };  # test 2
@@ -41,7 +41,7 @@ open my $fh, '<', 't/output' or die "Unable to open test output: $!";
 while (<$fh>) { $out_lines++ };
 close $fh or die "Problems closing test output: $!";
 
-ok( $d eq $out_lines, 'Expected number of lines actually output' ); # test 5
+ok( $d eq $out_lines, 'Expected number of lines actually output to file' ); # test 5
 
 if (-f "t/output") {
     unlink "t/output" or die "Unable to unlink test output: $!";
@@ -63,3 +63,27 @@ while ( my $line = $m->next_line() ) {
 }
 
 ok( 0 == $fail, 'Records in expected order' ); # test 6
+
+# Read two input files, one with no blank lines, one with. Enable
+# skipping of blank records and check for number of lines.
+
+@files = ( 't/6', 't/7' );
+$m = File::MergeSort->new( \@files,
+			   sub { return substr($_[0], 0, 2 ) },
+			   { skip_empty_lines => 1 },
+			 );
+
+my $non_blank_lines = 0;
+
+foreach my $file ( @files ) {
+    open my $fh, '<', $file or die "Unable to open test file $file: $!";
+    while (<$fh>) { $non_blank_lines++ unless /^$/; };
+    close $fh or die "Problems closing test file, $file: $!";
+}
+
+my $out = $m->dump();
+
+ok( $out == $non_blank_lines,
+    'Expected number of lines whilst skip_empty_lines enabled'
+  ); # test 7
+
