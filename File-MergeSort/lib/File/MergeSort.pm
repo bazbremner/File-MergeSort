@@ -100,7 +100,7 @@ sub new {
 	croak 'Code reference required for merge key extraction';
     }
 
-    if ( $opts_ref && $opts_ref ne 'HASH' ) {
+    if ( $opts_ref && ref $opts_ref ne 'HASH' ) {
 	croak 'Options should be supplied as a hash reference';
     }
 
