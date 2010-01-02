@@ -17,8 +17,7 @@ BEGIN {
 use Test::More;
 
 if ( $have_io_zlib ) {
-    # Set after BEGIN blocks, so 8, not 9 tests.
-    plan tests => 8;
+    plan tests => 9;
 } else {
     plan skip_all => 'IO::Zlib not available';
 }
