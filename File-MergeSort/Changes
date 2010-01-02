@@ -1,4 +1,13 @@
 Revision history for Perl extension File::MergeSort.
+
+1.23  Sat Jan 2 2010
+    - Missed a test file from the MANIFEST, added.
+    - It appears there is an issue with BEGIN{ use_ok() } with older
+      versions of Test::More (such as the version shipped with RHEL
+      and similar Linux distros) which I've been fighting
+      with. Removing the problematic test rather than demand a newer
+      Test::More for now.
+
 1.22  Fri Jan 1 2010
     - Add ability to skip blank lines in the input files (RT #39969)
     - Improve tests slightly

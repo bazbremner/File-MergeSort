@@ -7,7 +7,7 @@ use warnings;
 use Carp;
 use IO::File;
 
-our $VERSION = '1.22';
+our $VERSION = '1.23';
 
 my $have_io_zlib;
 
