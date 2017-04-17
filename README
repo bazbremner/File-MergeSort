@@ -40,7 +40,7 @@ need install IO::Zlib to use File::MergeSort.
 COPYRIGHT AND LICENCE
 
  Copyright (c) 2001-2003 Christopher Brown
-               2003-2010 Barrie Bremner
+               2003-2017 Barrie Bremner
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

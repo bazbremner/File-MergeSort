@@ -420,7 +420,7 @@ Christopher Brown E<lt>ctbrown@cpan.orgE<gt>.
 
 =head2 Maintainer
 
-Barrie Bremner L<http://barriebremner.com/>.
+Barrie Bremner L<https://barriebremner.com/>.
 
 =head2 Contributors
 
@@ -429,7 +429,7 @@ Laura Cooney.
 =head1 LICENSE AND COPYRIGHT
 
  Copyright (c) 2001-2003 Christopher Brown
-               2003-2010 Barrie Bremner
+               2003-2017 Barrie Bremner
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
